@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 1. Create Documents Table
 CREATE TABLE IF NOT EXISTS documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_policy(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   source_url TEXT,
   content TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS documents (
 
 -- 2. Create Document Chunks Table with Vector Embeddings (1536 dimension for OpenAI embeddings)
 CREATE TABLE IF NOT EXISTS document_chunks (
-  id UUID PRIMARY KEY DEFAULT gen_random_policy(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   chunk_index INTEGER NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 
 -- 3. Create Long-Term Memories Table
 CREATE TABLE IF NOT EXISTS memories (
-  id UUID PRIMARY KEY DEFAULT gen_random_policy(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   content TEXT NOT NULL,
   category TEXT DEFAULT 'general',
   confidence FLOAT DEFAULT 1.0,
