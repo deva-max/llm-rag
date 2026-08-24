@@ -1,41 +1,63 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import apiRouter from '@/routes/api'
+import { ApolloServer } from '@apollo/server'
+// @ts-ignore
+import { expressMiddleware } from '@as-integrations/express4'
+import { typeDefs } from '@/graphql/typeDefs'
+import { resolvers } from '@/graphql/resolvers'
 import { getConfig } from '@/config'
 import { initKafka } from '@/infrastructure/kafka'
 import { syncInfisicalSecrets } from '@/infrastructure/infisical'
-import { errorHandler, notFoundHandler } from '@/middleware/error.middleware'
+import { errorHandler } from '@/middleware/error.middleware'
 import { clientFallbackMiddleware } from '@/middleware/static.middleware'
 
 dotenv.config()
 
-const app = express()
-const config = getConfig()
+async function startServer() {
+  const app = express()
+  const config = getConfig()
 
-// 1. Standard Middleware
-app.use(cors())
-app.use(express.json({ limit: '10mb' }))
+  // 1. Standard Middleware
+  app.use(cors())
+  app.use(express.json({ limit: '10mb' }))
 
-// 2. Register API Routes
-app.use('/api', apiRouter)
+  // 2. Setup Apollo Server
+  const apolloServer = new ApolloServer({
+    typeDefs,
+    resolvers,
+  })
 
-// 3. Serve production client build (fallback)
-app.use(clientFallbackMiddleware())
+  await apolloServer.start()
 
-// 4. API Error Handling (Catch-all)
-app.use('/api', notFoundHandler)
-app.use(errorHandler)
+  // 3. Register GraphQL Route
+  app.use(
+    '/graphql',
+    expressMiddleware(apolloServer, {
+      context: async ({ req }: any) => ({ req }),
+    })
+  )
 
-const PORT = config.port
+  // 4. Serve production client build (fallback)
+  app.use(clientFallbackMiddleware())
 
-app.listen(PORT, async () => {
-  console.log(`\n🚀 RAG & Memory Express Server running on http://localhost:${PORT}`)
-  console.log(`📡 API available at http://localhost:${PORT}/api`)
+  // 5. API Error Handling (Catch-all)
+  app.use(errorHandler)
 
-  // Sync Infisical Secrets
-  await syncInfisicalSecrets()
+  const PORT = config.port
 
-  // Initialize Apache Kafka Producer/Consumer
-  await initKafka()
+  app.listen(PORT, async () => {
+    console.log(`\n🚀 RAG & Memory Express Server running on http://localhost:${PORT}`)
+    console.log(`📡 GraphQL API available at http://localhost:${PORT}/graphql`)
+
+    // Sync Infisical Secrets
+    await syncInfisicalSecrets()
+
+    // Initialize Apache Kafka Producer/Consumer
+    await initKafka()
+  })
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error)
 })

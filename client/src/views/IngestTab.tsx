@@ -1,93 +1,46 @@
-import React, { useState, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { ApiCredentials, DocumentStats } from '@/types'
-import { ApiOperations } from '@/operations/api.operation'
-import { HttpErrorResponse } from '@/utils/errors'
+import React from 'react'
+import { DocumentStats } from '@/types'
 import { Globe, FileText, Database, Sparkles, CheckCircle2, ArrowRight, Layers, AlertCircle, Loader2 } from 'lucide-react'
 
-export const IngestTab: React.FC = () => {
-  const { creds } = useOutletContext<{ creds: ApiCredentials }>()
-  const [activeSubTab, setActiveSubTab] = useState<'url' | 'text'>('url')
-  
-  // URL Ingestion Form State
-  const [url, setUrl] = useState('https://freeacademy.ai/lessons/memory-and-context-rag')
-  const [chunkSize, setChunkSize] = useState(500)
-  
-  // Text Ingestion Form State
-  const [textTitle, setTextTitle] = useState('')
-  const [textContent, setTextContent] = useState('')
-  const [textSourceUrl, setTextSourceUrl] = useState('')
+interface IngestTabProps {
+  activeSubTab: 'url' | 'text'
+  setActiveSubTab: (val: 'url' | 'text') => void
+  url: string
+  setUrl: (val: string) => void
+  chunkSize: number
+  setChunkSize: (val: number) => void
+  textTitle: string
+  setTextTitle: (val: string) => void
+  textContent: string
+  setTextContent: (val: string) => void
+  textSourceUrl: string
+  setTextSourceUrl: (val: string) => void
+  isLoading: boolean
+  statusMessage: { type: 'success' | 'error'; text: string } | null
+  docStats: DocumentStats | null
+  handleIngestUrl: (e: React.FormEvent) => void
+  handleIngestText: (e: React.FormEvent) => void
+}
 
-  const [isLoading, setIsLoading] = useState(false)
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [docStats, setDocStats] = useState<DocumentStats | null>(null)
-
-  const loadStats = async () => {
-    try {
-      const stats = await ApiOperations.fetchDocuments()
-      setDocStats(stats)
-    } catch (e) {
-      console.warn('Failed to load doc stats:', e)
-    }
-  }
-
-  useEffect(() => {
-    loadStats()
-  }, [])
-
-  const handleIngestUrl = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!url.trim() || isLoading) return
-
-    setIsLoading(true)
-    setStatusMessage(null)
-
-    try {
-      const res = await ApiOperations.ingestUrl(url, chunkSize)
-      setStatusMessage({
-        type: 'success',
-        text: `Successfully scraped page via Firecrawl! Title: "${res.data.title}" • Generated ${res.data.totalChunks} vector chunks.`
-      })
-      setUrl('')
-      loadStats()
-    } catch (err) {
-      const message = err instanceof HttpErrorResponse ? err.message : 'Firecrawl web ingestion failed'
-      setStatusMessage({
-        type: 'error',
-        text: message
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleIngestText = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!textTitle.trim() || !textContent.trim() || isLoading) return
-
-    setIsLoading(true)
-    setStatusMessage(null)
-
-    try {
-      const res = await ApiOperations.ingestText(textTitle, textContent, textSourceUrl || '', chunkSize)
-      setStatusMessage({
-        type: 'success',
-        text: `Successfully created document: "${res.data.title}" • Generated ${res.data.totalChunks} vector chunks.`
-      })
-      setTextTitle('')
-      setTextContent('')
-      setTextSourceUrl('')
-      loadStats()
-    } catch (err) {
-      const message = err instanceof HttpErrorResponse ? err.message : 'Text document ingestion failed'
-      setStatusMessage({
-        type: 'error',
-        text: message
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+export const IngestTab: React.FC<IngestTabProps> = ({
+  activeSubTab,
+  setActiveSubTab,
+  url,
+  setUrl,
+  chunkSize,
+  setChunkSize,
+  textTitle,
+  setTextTitle,
+  textContent,
+  setTextContent,
+  textSourceUrl,
+  setTextSourceUrl,
+  isLoading,
+  statusMessage,
+  docStats,
+  handleIngestUrl,
+  handleIngestText
+}) => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>

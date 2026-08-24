@@ -1,30 +1,18 @@
-import React, { useState, useEffect } from 'react'
-import { KafkaLog, KafkaStatusResponse } from '@/types'
-import { ApiOperations } from '@/operations/api.operation'
-import { HttpErrorResponse } from '@/utils/errors'
+import React from 'react'
+import { KafkaStatusResponse } from '@/types'
 import { Activity, Radio, Database, RefreshCw, Send, CheckCircle2, ShieldAlert, Sparkles } from 'lucide-react'
 
-export const KafkaTab: React.FC = () => {
-  const [kafkaStatus, setKafkaStatus] = useState<KafkaStatusResponse | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+interface KafkaTabProps {
+  kafkaStatus: KafkaStatusResponse | null
+  isRefreshing: boolean
+  loadStatus: () => void
+}
 
-  const loadStatus = async () => {
-    setIsRefreshing(true)
-    try {
-      const data = await ApiOperations.fetchKafkaStatus()
-      setKafkaStatus(data)
-    } catch (e) {
-      console.warn('Failed to load Kafka status:', e instanceof HttpErrorResponse ? e.message : e)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
-  useEffect(() => {
-    loadStatus()
-    const interval = setInterval(loadStatus, 4000)
-    return () => clearInterval(interval)
-  }, [])
+export const KafkaTab: React.FC<KafkaTabProps> = ({
+  kafkaStatus,
+  isRefreshing,
+  loadStatus
+}) => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>

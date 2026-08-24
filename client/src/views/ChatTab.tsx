@@ -1,87 +1,40 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Message, ApiCredentials } from '@/types'
-import { ApiOperations } from '@/operations/api.operation'
-import { HttpErrorResponse } from '@/utils/errors'
-import { Send, Bot, User, Brain, Database, Search, Sparkles, SlidersHorizontal, CheckCircle2, ChevronRight } from 'lucide-react'
+import React from 'react'
+import { Message } from '@/types'
+import { Send, Bot, User, Brain, Database, Search, Sparkles, SlidersHorizontal } from 'lucide-react'
 
-export const ChatTab: React.FC = () => {
-  const { creds } = useOutletContext<{ creds: ApiCredentials }>()
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: `Hello! I am your **Memory & Context RAG Engine**.\n\nI combine **Short-Term Memory**, **Long-Term Vector Memory (Supabase)**, **Vector Knowledge Base (pgvector)**, and **Live Web Grounding (Tavily)**.\n\nTry telling me something about yourself like: *"My name is Sarah and I prefer TypeScript over Python"* or ask a question!`,
-      timestamp: new Date().toLocaleTimeString()
-    }
-  ])
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [useRag, setUseRag] = useState(true)
-  const [useTavily, setUseTavily] = useState(true)
-  const [useMemory, setUseMemory] = useState(true)
-  const [selectedMessageContext, setSelectedMessageContext] = useState<Message['ragContext'] | null>(null)
+interface ChatTabProps {
+  messages: Message[]
+  input: string
+  setInput: (val: string) => void
+  isLoading: boolean
+  useRag: boolean
+  setUseRag: (val: boolean) => void
+  useTavily: boolean
+  setUseTavily: (val: boolean) => void
+  useMemory: boolean
+  setUseMemory: (val: boolean) => void
+  selectedMessageContext: Message['ragContext'] | null
+  setSelectedMessageContext: (val: Message['ragContext'] | null) => void
+  messagesEndRef: React.RefObject<HTMLDivElement>
+  handleSend: (textToSend?: string) => void
+}
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading])
-
-  const handleSend = async (textToSend?: string) => {
-    const query = (textToSend || input).trim()
-    if (!query || isLoading) return
-
-    const userMsg: Message = {
-      id: `user_${Date.now()}`,
-      role: 'user',
-      content: query,
-      timestamp: new Date().toLocaleTimeString()
-    }
-
-    setMessages((prev) => [...prev, userMsg])
-    if (!textToSend) setInput('')
-    setIsLoading(true)
-
-    try {
-      const historyForApi = [...messages, userMsg].map((m) => ({
-        role: m.role,
-        content: m.content
-      }))
-
-      const res = await ApiOperations.chat(historyForApi, { useRag, useTavily, useMemory, ...creds })
-
-      const assistantMsg: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: res.answer,
-        timestamp: new Date().toLocaleTimeString(),
-        ragContext: {
-          memoriesUsed: res.memoriesUsed || [],
-          vectorChunksUsed: res.vectorChunksUsed || [],
-          tavilyResultsUsed: res.tavilyResultsUsed || [],
-          newMemoriesExtracted: res.newMemoriesExtracted || []
-        }
-      }
-
-      setMessages((prev) => [...prev, assistantMsg])
-      setSelectedMessageContext(assistantMsg.ragContext)
-    } catch (err) {
-      const message = err instanceof HttpErrorResponse ? err.message : 'Unknown error'
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err_${Date.now()}`,
-          role: 'assistant',
-          content: `⚠️ Error processing RAG completion: ${message}`,
-          timestamp: new Date().toLocaleTimeString()
-        }
-      ])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+export const ChatTab: React.FC<ChatTabProps> = ({
+  messages,
+  input,
+  setInput,
+  isLoading,
+  useRag,
+  setUseRag,
+  useTavily,
+  setUseTavily,
+  useMemory,
+  setUseMemory,
+  selectedMessageContext,
+  setSelectedMessageContext,
+  messagesEndRef,
+  handleSend
+}) => {
   const samplePrompts = [
     "My name is Sarah, I am building an AI startup in San Francisco.",
     "What do you remember about me and my goals?",

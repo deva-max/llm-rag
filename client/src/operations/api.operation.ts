@@ -1,102 +1,254 @@
+import { ApolloClient, InMemoryCache, gql, HttpLink } from '@apollo/client'
 import { Message, MemoryRecord, TavilyResultItem, DocumentStats, ConfigStatus, KafkaStatusResponse, InfisicalStatusResponse } from '@/types'
-import { APP_CONSTANTS } from '@/config/constants/app.constants'
-import { HttpErrorResponse } from '@/utils/errors'
 
-const BASE = APP_CONSTANTS.API_BASE_URL
+const link = new HttpLink({ uri: '/graphql' })
 
-async function handleResponse(res: Response) {
-  if (!res.ok) {
-    let msg = 'API Error'
-    let data
-    try {
-      data = await res.json()
-      msg = data.error || data.message || msg
-    } catch (e) {}
-    throw new HttpErrorResponse(msg, res.status, data)
-  }
-  return res.json()
-}
+export const apolloClient = new ApolloClient({
+  link,
+  cache: new InMemoryCache(),
+})
 
 export const ApiOperations = {
   // Config & Integrations
   async fetchConfigStatus(): Promise<ConfigStatus> {
-    const res = await fetch(`${BASE}/config/status`)
-    return handleResponse(res)
-  },
-  async updateConfig(payload: any): Promise<any> {
-    const res = await fetch(`${BASE}/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query {
+          configStatus {
+            isSupabaseConfigured
+            isOpenAiConfigured
+            isFirecrawlConfigured
+            isTavilyConfigured
+            isInfisicalConfigured
+          }
+        }
+      `,
+      fetchPolicy: 'network-only'
     })
-    return handleResponse(res)
+    return data.configStatus
   },
+  
+  async updateConfig(payload: any): Promise<any> {
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation UpdateConfig($input: ConfigUpdateInput!) {
+          updateConfig(input: $input)
+        }
+      `,
+      variables: { input: payload }
+    })
+    return { success: data.updateConfig }
+  },
+
   async fetchKafkaStatus(): Promise<KafkaStatusResponse> {
-    const res = await fetch(`${BASE}/kafka/status`)
-    return handleResponse(res)
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query {
+          kafkaStatus {
+            isConnected
+            brokers
+            error
+          }
+        }
+      `,
+      fetchPolicy: 'network-only'
+    })
+    return data.kafkaStatus
   },
+
   async fetchInfisicalStatus(): Promise<InfisicalStatusResponse> {
-    const res = await fetch(`${BASE}/infisical/status`)
-    return handleResponse(res)
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query {
+          infisicalStatus {
+            connected
+            secretsLoaded
+            source
+          }
+        }
+      `,
+      fetchPolicy: 'network-only'
+    })
+    return data.infisicalStatus
   },
+
   async syncInfisical(): Promise<InfisicalStatusResponse> {
-    const res = await fetch(`${BASE}/infisical/sync`, { method: 'POST' })
-    return handleResponse(res)
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation {
+          syncInfisical
+        }
+      `
+    })
+    return { success: data.syncInfisical } as any
   },
 
   // RAG & Chat
   async chat(messages: { role: string; content: string }[], config: any): Promise<any> {
-    const res = await fetch(`${BASE}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...config, messages })
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation Chat($input: ChatRequestInput!) {
+          chat(input: $input) {
+            answer
+            memoriesUsed {
+              content
+              category
+              similarity
+            }
+            vectorChunksUsed {
+              content
+              similarity
+            }
+            tavilyResultsUsed {
+              title
+              url
+              content
+            }
+            newMemoriesExtracted {
+              content
+              category
+            }
+          }
+        }
+      `,
+      variables: {
+        input: {
+          messages,
+          ...config
+        }
+      }
     })
-    return handleResponse(res)
+    return data.chat
   },
+
   async ingestUrl(url: string, chunkSize: number): Promise<any> {
-    const res = await fetch(`${BASE}/ingest/url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, chunkSize })
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation IngestUrl($url: String!, $chunkSize: Int) {
+          ingestUrl(url: $url, chunkSize: $chunkSize) {
+            success
+            message
+            data {
+              documentId
+              title
+              url
+              totalChunks
+            }
+          }
+        }
+      `,
+      variables: { url, chunkSize }
     })
-    return handleResponse(res)
+    return data.ingestUrl
   },
+
   async ingestText(title: string, content: string, sourceUrl: string, chunkSize: number): Promise<any> {
-    const res = await fetch(`${BASE}/ingest/text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, sourceUrl, chunkSize })
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation IngestText($title: String!, $content: String!, $sourceUrl: String, $chunkSize: Int) {
+          ingestText(title: $title, content: $content, sourceUrl: $sourceUrl, chunkSize: $chunkSize) {
+            success
+            message
+            data {
+              documentId
+              title
+              totalChunks
+            }
+          }
+        }
+      `,
+      variables: { title, content, sourceUrl, chunkSize }
     })
-    return handleResponse(res)
+    return data.ingestText
   },
+
   async fetchDocuments(): Promise<DocumentStats> {
-    const res = await fetch(`${BASE}/documents`)
-    return handleResponse(res)
-  },
-  async searchTavily(query: string, searchDepth: string, maxResults: number): Promise<{ query: string; answer?: string; results: TavilyResultItem[] }> {
-    const res = await fetch(`${BASE}/search/tavily`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, searchDepth, maxResults })
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query {
+          documents {
+            totalDocuments
+            totalChunks
+            dbSizeMB
+          }
+        }
+      `,
+      fetchPolicy: 'network-only'
     })
-    return handleResponse(res)
+    return data.documents
+  },
+
+  async searchTavily(query: string, searchDepth: string, maxResults: number): Promise<{ query: string; answer?: string; results: TavilyResultItem[] }> {
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query SearchTavily($query: String!, $searchDepth: String, $maxResults: Int) {
+          searchTavily(query: $query, searchDepth: $searchDepth, maxResults: $maxResults) {
+            query
+            results {
+              title
+              url
+              content
+              score
+            }
+          }
+        }
+      `,
+      variables: { query, searchDepth, maxResults },
+      fetchPolicy: 'network-only'
+    })
+    return data.searchTavily
   },
 
   // Memories
   async fetchMemories(): Promise<{ memories: MemoryRecord[] }> {
-    const res = await fetch(`${BASE}/memories`)
-    return handleResponse(res)
-  },
-  async addMemory(content: string, category: string, confidence: number, source: string): Promise<any> {
-    const res = await fetch(`${BASE}/memories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, category, confidence, source })
+    const { data } = await apolloClient.query<any>({
+      query: gql`
+        query {
+          memories {
+            id
+            content
+            category
+            confidence
+            source
+            createdAt
+          }
+        }
+      `,
+      fetchPolicy: 'network-only'
     })
-    return handleResponse(res)
+    return { memories: data.memories }
   },
+
+  async addMemory(content: string, category: string, confidence: number, source: string): Promise<any> {
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation AddMemory($input: MemoryItemInput!) {
+          addMemory(input: $input) {
+            id
+            content
+            category
+            confidence
+            source
+            createdAt
+          }
+        }
+      `,
+      variables: {
+        input: { content, category, confidence, source }
+      }
+    })
+    return { success: true, memory: data.addMemory }
+  },
+
   async deleteMemory(id: string): Promise<any> {
-    const res = await fetch(`${BASE}/memories/${id}`, { method: 'DELETE' })
-    return handleResponse(res)
+    const { data } = await apolloClient.mutate<any>({
+      mutation: gql`
+        mutation DeleteMemory($id: ID!) {
+          deleteMemory(id: $id)
+        }
+      `,
+      variables: { id }
+    })
+    return { success: data.deleteMemory }
   }
 }

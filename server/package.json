@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.1.13",
+    "@apollo/server": "^5.5.1",
+    "@as-integrations/express4": "^1.1.2",
     "@infisical/sdk": "^5.0.2",
     "@supabase/supabase-js": "^2.49.1",
     "ai": "^4.1.48",
@@ -16,6 +18,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "graphql": "^16.14.2",
+    "graphql-tag": "^2.12.7",
     "kafkajs": "^2.2.4",
     "zod": "^3.24.2"
   },

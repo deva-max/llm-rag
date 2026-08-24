@@ -1,34 +1,32 @@
-import React, { useState } from 'react'
-import { ApiCredentials, TavilyResultItem } from '@/types'
-import { ApiOperations } from '@/operations/api.operation'
-import { HttpErrorResponse } from '@/utils/errors'
+import React from 'react'
+import { TavilyResultItem } from '@/types'
 import { Search, Globe, Sparkles, ExternalLink, ShieldCheck, Zap } from 'lucide-react'
 
-export const TavilyTab: React.FC = () => {
-  const [query, setQuery] = useState('FreeAcademy memory and context RAG module')
-  const [searchDepth, setSearchDepth] = useState<'basic' | 'advanced'>('basic')
-  const [maxResults, setMaxResults] = useState(5)
-  const [isLoading, setIsLoading] = useState(false)
-  const [searchResults, setSearchResults] = useState<{ query: string; answer?: string; results: TavilyResultItem[] } | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+interface TavilyTabProps {
+  query: string
+  setQuery: (val: string) => void
+  searchDepth: 'basic' | 'advanced'
+  setSearchDepth: (val: 'basic' | 'advanced') => void
+  maxResults: number
+  setMaxResults: (val: number) => void
+  isLoading: boolean
+  searchResults: { query: string; answer?: string; results: TavilyResultItem[] } | null
+  errorMsg: string | null
+  handleSearch: (e: React.FormEvent) => void
+}
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim() || isLoading) return
-
-    setIsLoading(true)
-    setErrorMsg(null)
-
-    try {
-      const res = await ApiOperations.searchTavily(query, searchDepth, maxResults)
-      setSearchResults(res)
-    } catch (err) {
-      const message = err instanceof HttpErrorResponse ? err.message : 'Tavily search failed'
-      setErrorMsg(message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+export const TavilyTab: React.FC<TavilyTabProps> = ({
+  query,
+  setQuery,
+  searchDepth,
+  setSearchDepth,
+  maxResults,
+  setMaxResults,
+  isLoading,
+  searchResults,
+  errorMsg,
+  handleSearch
+}) => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
